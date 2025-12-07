@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測試 GCP Storage JSON 讀取 (Angular 風格)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .stats {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .stats h2 {
+            margin-bottom: 15px;
+            color: #1976d2;
+        }
+        .stats p {
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        .zip-selector {
+            margin: 20px 0;
+        }
+        .zip-selector label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .zip-selector select {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+        .zip-details {
+            margin-top: 30px;
+            padding: 25px;
+            background: #fafafa;
+            border-radius: 8px;
+        }
+        .zillow-data {
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .zillow-data h3 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+        }
+        .indices {
+            background: #f3e5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .indices h3 {
+            color: #7b1fa2;
+            margin-bottom: 15px;
+        }
+        .index-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e1bee7;
+        }
+        .index-item:last-child {
+            border-bottom: none;
+        }
+        .index-name {
+            font-weight: 500;
+            color: #4a148c;
+        }
+        .index-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #6a1b9a;
+        }
+        .index-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1bee7;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .index-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9c27b0, #7b1fa2);
+            transition: width 0.3s ease;
+        }
+        .crime-stats {
+            background: #fff3e0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .crime-stats h3 {
+            color: #e65100;
+            margin-bottom: 15px;
+        }
+        .crime-stats h4 {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #666;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .price {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .change-positive {
+            color: #4caf50;
+        }
+        .change-negative {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 DC Crime & Zillow 資料測試</h1>
+        
+        <div id="loading" class="loading">
+            <p>載入資料中...</p>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <!-- 統計資訊 -->
+            <div class="stats">
+                <h2>📊 統計資訊</h2>
+                <p>總 ZIP Code 數: <strong id="total-zipcodes">-</strong></p>
+                <p>總犯罪記錄數: <strong id="total-crimes">-</strong></p>
+                <p>總 Zillow 記錄: <strong id="total-zillow">-</strong></p>
+                <p>資料生成時間: <strong id="generated-at">-</strong></p>
+            </div>
+            
+            <!-- HCI 權重調整 -->
+            <div class="hci-controls" style="background: #f0f4f8; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3>🎚️ HCI 權重調整（論文公式）</h3>
+                <div style="margin: 15px 0;">
+                    <label>成長權重 (w1): <strong id="w1Value">60%</strong></label>
+                    <input type="range" id="w1Slider" min="0" max="100" value="60" 
+                           style="width: 100%; max-width: 400px;">
+                </div>
+                <div style="margin: 15px 0;">
+                    <label>安全權重 (w2): <strong id="w2Value">40%</strong></label>
+                    <input type="range" id="w2Slider" min="0" max="100" value="40" 
+                           style="width: 100%; max-width: 400px;">
+                </div>
+                <div style="margin: 15px 0;">
+                    <label>YoY 權重 (α): <strong id="alphaValue">50%</strong></label>
+                    <input type="range" id="alphaSlider" min="0" max="100" value="50" 
+                           style="width: 100%; max-width: 400px;">
+                    <small style="color: #666;">調整 MoM 和 YoY 的權重（0 = 只使用 MoM, 100 = 只使用 YoY）</small>
+                </div>
+                <button onclick="recalculateAllHCI()" 
+                        style="padding: 10px 20px; background: #7b1fa2; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    重新計算所有 ZIP Code 的 HCI
+                </button>
+            </div>
+            
+            <!-- 指數選擇器 -->
+            <div class="index-selector" style="margin: 20px 0;">
+                <label for="indexSelect">選擇顯示的指數:</label>
+                <select id="indexSelect" style="width: 100%; max-width: 300px; padding: 10px; font-size: 16px; border: 2px solid #ddd; border-radius: 4px;">
+                    <option value="hci">HCI (論文公式，可調整權重)</option>
+                    <option value="quality_of_life">生活品質指數</option>
+                    <option value="safety">安全指數</option>
+                    <option value="affordability">可負擔性指數</option>
+                    <option value="investment">投資價值指數</option>
+                </select>
+            </div>
+            
+            <!-- ZIP Code 選擇器 -->
+            <div class="zip-selector">
+                <label for="zipSelect">選擇 ZIP Code:</label>
+                <select id="zipSelect">
+                    <option value="">-- 請選擇 ZIP Code --</option>
+                </select>
+            </div>
+            
+            <!-- ZIP Code 詳細資料 -->
+            <div id="zipDetails" class="zip-details" style="display: none;">
+                <h2>📍 ZIP Code <span id="selectedZip"></span> 詳細資料</h2>
+                
+                <!-- Zillow 資料 -->
+                <div id="zillowData" class="zillow-data" style="display: none;">
+                    <h3>💰 房價資訊</h3>
+                    <p class="price" id="currentPrice">-</p>
+                    <p>月變化 (MOM): <span id="mom"></span></p>
+                    <p>年變化 (YOY): <span id="yoy"></span></p>
+                    <p>區域: <span id="regionName"></span></p>
+                </div>
+                
+                <!-- HCI 分數（論文公式） -->
+                <div id="hciData" class="indices" style="display: none; background: #e8eaf6;">
+                    <h3>📊 HCI (Housing-Crime Index) - 論文公式</h3>
+                    <div class="index-item">
+                        <span class="index-name">HCI 分數</span>
+                        <span class="index-value" id="hciScore">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="hciBar" style="width: 0%; background: linear-gradient(90deg, #3f51b5, #5c6bc0);"></div></div>
+                    
+                    <div class="index-item">
+                        <span class="index-name">成長指標 (G_z)</span>
+                        <span class="index-value" id="growthIndicator">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="growthBar" style="width: 0%"></div></div>
+                    
+                    <div class="index-item">
+                        <span class="index-name">安全指標 (1 - C_z)</span>
+                        <span class="index-value" id="safetyIndicatorHCI">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="safetyBarHCI" style="width: 0%"></div></div>
+                    
+                    <div class="index-item" id="crimeRateItem" style="display: none;">
+                        <span class="index-name">犯罪率（每 1000 居民）</span>
+                        <span class="index-value" id="crimeRatePer1000">-</span>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background: #fff; border-radius: 4px; font-size: 12px; color: #666;">
+                        <strong>權重設定:</strong><br>
+                        成長權重 (w1): <span id="currentW1">50%</span><br>
+                        安全權重 (w2): <span id="currentW2">50%</span><br>
+                        YoY 權重 (α): <span id="currentAlpha">50%</span>
+                    </div>
+                </div>
+                
+                <!-- Index 分數（現有指數） -->
+                <div id="indicesData" class="indices" style="display: none;">
+                    <h3>📊 綜合指數</h3>
+                    <div class="index-item">
+                        <span class="index-name">生活品質指數</span>
+                        <span class="index-value" id="qualityOfLifeIndex">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="qualityOfLifeBar" style="width: 0%"></div></div>
+                    
+                    <div class="index-item">
+                        <span class="index-name">安全指數</span>
+                        <span class="index-value" id="safetyIndex">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="safetyBar" style="width: 0%"></div></div>
+                    
+                    <div class="index-item">
+                        <span class="index-name">投資價值指數</span>
+                        <span class="index-value" id="investmentIndex">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="investmentBar" style="width: 0%"></div></div>
+                    
+                    <div class="index-item" id="affordabilityItem" style="display: none;">
+                        <span class="index-name">可負擔性指數</span>
+                        <span class="index-value" id="affordabilityIndex">-</span>
+                    </div>
+                    <div class="index-bar" id="affordabilityBar" style="display: none;"><div class="index-bar-fill" id="affordabilityBarFill" style="width: 0%"></div></div>
+                    
+                    <div class="index-item">
+                        <span class="index-name">犯罪風險指數</span>
+                        <span class="index-value" id="crimeIndex">-</span>
+                    </div>
+                    <div class="index-bar"><div class="index-bar-fill" id="crimeBar" style="width: 0%"></div></div>
+                </div>
+                
+                <!-- Crime 統計 -->
+                <div class="crime-stats">
+                    <h3>🚨 犯罪統計</h3>
+                    <p>總犯罪數: <strong id="totalCrimes">-</strong></p>
+                    
+                    <h4>按犯罪類型（前 10 名）</h4>
+                    <ul id="offenseList"></ul>
+                    
+                    <h4>按時段</h4>
+                    <ul id="shiftList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PUBLIC_URL = 'https://storage.googleapis.com/dc-crime-data-zhangxuanqi-1762814591/data/dc_crime_zillow_combined.json';
+        
+        let allData = null;
+        let currentHCIWeights = { w1: 0.6, w2: 0.4, alpha: 0.5 };
+        let allHCIResults = {};
+        
+        // HCI Calculator (論文公式)
+        class HCICalculator {
+            normalizeTo01(value, minVal, maxVal) {
+                if (maxVal === minVal) return 0.5;
+                const normalized = (value - minVal) / (maxVal - minVal);
+                return Math.max(0, Math.min(1, normalized));
+            }
+            
+            calculateGrowthIndicator(momRate, yoyRate, ranges, alpha) {
+                if (momRate === null || yoyRate === null || 
+                    ranges.min_mom === null || ranges.max_mom === null ||
+                    ranges.min_yoy === null || ranges.max_yoy === null) {
+                    return 0.0;
+                }
+                const normalizedMom = this.normalizeTo01(momRate, ranges.min_mom, ranges.max_mom);
+                const normalizedYoy = this.normalizeTo01(yoyRate, ranges.min_yoy, ranges.max_yoy);
+                return alpha * normalizedYoy + (1 - alpha) * normalizedMom;
+            }
+            
+            calculateCrimeIndicator(crimeCount, population, ranges) {
+                let crimeRate = null;
+                if (population !== null && population > 0 && 
+                    ranges.min_crime_rate !== null && ranges.max_crime_rate !== null) {
+                    crimeRate = (crimeCount / population) * 1000;
+                    return this.normalizeTo01(crimeRate, ranges.min_crime_rate, ranges.max_crime_rate);
+                } else {
+                    return this.normalizeTo01(crimeCount, ranges.min_crime_count, ranges.max_crime_count);
+                }
+            }
+            
+            calculateHCI(zipData, params) {
+                const { w1, w2, alpha } = params;
+                const ranges = zipData.hci.ranges;
+                const momRate = zipData.zillow_data?.mom ?? null;
+                const yoyRate = zipData.zillow_data?.yoy ?? null;
+                const crimeCount = zipData.crime_stats.total_crimes;
+                const population = zipData.census_data?.total_population ?? null;
+                
+                const growthIndicator = this.calculateGrowthIndicator(momRate, yoyRate, ranges, alpha);
+                const crimeIndicator = this.calculateCrimeIndicator(crimeCount, population, ranges);
+                const safetyIndicator = 1 - crimeIndicator;
+                
+                let hciScore;
+                if (momRate !== null && yoyRate !== null) {
+                    hciScore = w1 * growthIndicator + w2 * safetyIndicator;
+                } else if (crimeCount > 0) {
+                    hciScore = w2 * safetyIndicator;
+                } else {
+                    hciScore = 0.0;
+                }
+                
+                let crimeRatePer1000 = null;
+                if (population !== null && population > 0) {
+                    crimeRatePer1000 = (crimeCount / population) * 1000;
+                }
+                
+                return {
+                    hci_score: hciScore,
+                    hci_score_100: Math.round(hciScore * 100 * 100) / 100,
+                    growth_indicator: growthIndicator,
+                    growth_indicator_100: Math.round(growthIndicator * 100 * 100) / 100,
+                    crime_indicator: crimeIndicator,
+                    crime_indicator_100: Math.round(crimeIndicator * 100 * 100) / 100,
+                    safety_indicator: safetyIndicator,
+                    safety_indicator_100: Math.round(safetyIndicator * 100 * 100) / 100,
+                    crime_rate_per_1000: crimeRatePer1000 ? Math.round(crimeRatePer1000 * 100) / 100 : null
+                };
+            }
+            
+            calculateAllHCI(data, params) {
+                const results = {};
+                for (const zipCode in data) {
+                    results[zipCode] = this.calculateHCI(data[zipCode], params);
+                }
+                return results;
+            }
+        }
+        
+        const hciCalculator = new HCICalculator();
+        
+        // 載入資料
+        async function loadData() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const contentEl = document.getElementById('content');
+            
+            try {
+                const response = await fetch(PUBLIC_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                allData = await response.json();
+                
+                // 顯示統計資訊
+                document.getElementById('total-zipcodes').textContent = allData.metadata.total_zipcodes;
+                document.getElementById('total-crimes').textContent = allData.metadata.total_crimes.toLocaleString();
+                document.getElementById('total-zillow').textContent = allData.metadata.total_zillow_records;
+                document.getElementById('generated-at').textContent = new Date(allData.metadata.generated_at).toLocaleString('zh-TW');
+                
+                // 載入 ZIP Code 列表
+                const zipCodes = Object.keys(allData.data).sort();
+                const zipSelect = document.getElementById('zipSelect');
+                zipCodes.forEach(zip => {
+                    const option = document.createElement('option');
+                    option.value = zip;
+                    option.textContent = zip;
+                    zipSelect.appendChild(option);
+                });
+                
+                // 監聽選擇變化
+                zipSelect.addEventListener('change', (e) => {
+                    const selectedZip = e.target.value;
+                    if (selectedZip) {
+                        loadZipCodeData(selectedZip);
+                    } else {
+                        document.getElementById('zipDetails').style.display = 'none';
+                    }
+                });
+                
+                // 監聽指數選擇變化
+                const indexSelect = document.getElementById('indexSelect');
+                indexSelect.addEventListener('change', (e) => {
+                    const selectedZip = document.getElementById('zipSelect').value;
+                    if (selectedZip) {
+                        loadZipCodeData(selectedZip);
+                    }
+                });
+                
+                // 設定 HCI 權重滑桿
+                setupHCIControls();
+                
+                // 計算所有 ZIP Code 的 HCI（使用預設權重）
+                recalculateAllHCI();
+                
+                // 隱藏載入，顯示內容
+                loadingEl.style.display = 'none';
+                contentEl.style.display = 'block';
+                
+                console.log('✅ 資料載入成功！', allData);
+                
+            } catch (error) {
+                loadingEl.style.display = 'none';
+                errorEl.style.display = 'block';
+                errorEl.textContent = `❌ 載入失敗: ${error.message}`;
+                console.error('載入失敗:', error);
+            }
+        }
+        
+        // 載入特定 ZIP Code 的資料
+        function loadZipCodeData(zipCode) {
+            const zipData = allData.data[zipCode];
+            if (!zipData) return;
+            
+            document.getElementById('selectedZip').textContent = zipCode;
+            document.getElementById('totalCrimes').textContent = zipData.crime_stats.total_crimes;
+            
+            // Zillow 資料
+            const zillowEl = document.getElementById('zillowData');
+            if (zipData.zillow_data) {
+                zillowEl.style.display = 'block';
+                document.getElementById('currentPrice').textContent = 
+                    '$' + zipData.zillow_data.current_price.toLocaleString('en-US', {maximumFractionDigits: 0});
+                
+                const mom = zipData.zillow_data.mom * 100;
+                const yoy = zipData.zillow_data.yoy * 100;
+                
+                document.getElementById('mom').innerHTML = 
+                    `<span class="${mom >= 0 ? 'change-positive' : 'change-negative'}">${mom >= 0 ? '+' : ''}${mom.toFixed(2)}%</span>`;
+                document.getElementById('yoy').innerHTML = 
+                    `<span class="${yoy >= 0 ? 'change-positive' : 'change-negative'}">${yoy >= 0 ? '+' : ''}${yoy.toFixed(2)}%</span>`;
+                document.getElementById('regionName').textContent = zipData.zillow_data.region_name || '-';
+            } else {
+                zillowEl.style.display = 'none';
+            }
+            
+            // 根據選擇的指數類型顯示
+            const selectedIndex = document.getElementById('indexSelect').value;
+            
+            if (selectedIndex === 'hci') {
+                // 顯示 HCI（論文公式）
+                displayHCI(zipCode, zipData);
+                document.getElementById('indicesData').style.display = 'none';
+            } else {
+                // 顯示現有指數
+                displayIndices(zipData);
+                document.getElementById('hciData').style.display = 'none';
+            }
+            
+            // 犯罪類型列表
+            const offenseList = Object.entries(zipData.crime_stats.by_offense)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            const offenseEl = document.getElementById('offenseList');
+            offenseEl.innerHTML = offenseList.map(([offense, count]) => 
+                `<li>${offense}: <strong>${count}</strong> 筆</li>`
+            ).join('');
+            
+            // 時段列表
+            const shiftList = Object.entries(zipData.crime_stats.by_shift)
+                .sort((a, b) => b[1] - a[1]);
+            const shiftEl = document.getElementById('shiftList');
+            shiftEl.innerHTML = shiftList.map(([shift, count]) => 
+                `<li>${shift}: <strong>${count}</strong> 筆</li>`
+            ).join('');
+            
+            document.getElementById('zipDetails').style.display = 'block';
+        }
+        
+        // 顯示 HCI（論文公式）
+        function displayHCI(zipCode, zipData) {
+            const hciEl = document.getElementById('hciData');
+            if (!zipData.hci || !zipData.hci.ranges) {
+                hciEl.style.display = 'none';
+                return;
+            }
+            
+            // 使用當前權重計算 HCI
+            const hciResult = hciCalculator.calculateHCI(zipData, currentHCIWeights);
+            
+            // 顯示 HCI 分數
+            document.getElementById('hciScore').textContent = hciResult.hci_score_100.toFixed(1);
+            document.getElementById('hciBar').style.width = hciResult.hci_score_100 + '%';
+            
+            // 顯示成長指標
+            document.getElementById('growthIndicator').textContent = hciResult.growth_indicator_100.toFixed(1);
+            document.getElementById('growthBar').style.width = hciResult.growth_indicator_100 + '%';
+            
+            // 顯示安全指標
+            document.getElementById('safetyIndicatorHCI').textContent = hciResult.safety_indicator_100.toFixed(1);
+            document.getElementById('safetyBarHCI').style.width = hciResult.safety_indicator_100 + '%';
+            
+            // 顯示犯罪率
+            if (hciResult.crime_rate_per_1000 !== null) {
+                document.getElementById('crimeRateItem').style.display = 'flex';
+                document.getElementById('crimeRatePer1000').textContent = hciResult.crime_rate_per_1000.toFixed(2);
+            } else {
+                document.getElementById('crimeRateItem').style.display = 'none';
+            }
+            
+            // 顯示當前權重
+            document.getElementById('currentW1').textContent = (currentHCIWeights.w1 * 100).toFixed(0) + '%';
+            document.getElementById('currentW2').textContent = (currentHCIWeights.w2 * 100).toFixed(0) + '%';
+            document.getElementById('currentAlpha').textContent = (currentHCIWeights.alpha * 100).toFixed(0) + '%';
+            
+            hciEl.style.display = 'block';
+        }
+        
+        // 顯示現有指數
+        function displayIndices(zipData) {
+            const indicesEl = document.getElementById('indicesData');
+            if (!zipData.indices) {
+                indicesEl.style.display = 'none';
+                return;
+            }
+            
+            // 生活品質指數
+            const qolIndex = zipData.indices.quality_of_life_index;
+            document.getElementById('qualityOfLifeIndex').textContent = qolIndex.toFixed(1);
+            document.getElementById('qualityOfLifeBar').style.width = qolIndex + '%';
+            
+            // 安全指數
+            const safetyIndex = zipData.indices.safety_index;
+            document.getElementById('safetyIndex').textContent = safetyIndex.toFixed(1);
+            document.getElementById('safetyBar').style.width = safetyIndex + '%';
+            
+            // 投資價值指數
+            const investmentIndex = zipData.indices.investment_index;
+            document.getElementById('investmentIndex').textContent = investmentIndex.toFixed(1);
+            document.getElementById('investmentBar').style.width = investmentIndex + '%';
+            
+            // 可負擔性指數
+            if (zipData.indices.affordability_index !== null && zipData.indices.affordability_index !== undefined) {
+                document.getElementById('affordabilityItem').style.display = 'flex';
+                document.getElementById('affordabilityBar').style.display = 'block';
+                const affordabilityIndex = zipData.indices.affordability_index;
+                document.getElementById('affordabilityIndex').textContent = affordabilityIndex.toFixed(1);
+                document.getElementById('affordabilityBarFill').style.width = affordabilityIndex + '%';
+            } else {
+                document.getElementById('affordabilityItem').style.display = 'none';
+                document.getElementById('affordabilityBar').style.display = 'none';
+            }
+            
+            // 犯罪風險指數
+            const crimeIndex = zipData.indices.crime_index;
+            document.getElementById('crimeIndex').textContent = crimeIndex.toFixed(1);
+            document.getElementById('crimeBar').style.width = crimeIndex + '%';
+            
+            indicesEl.style.display = 'block';
+        }
+        
+        // 設定 HCI 權重控制
+        function setupHCIControls() {
+            const w1Slider = document.getElementById('w1Slider');
+            const w2Slider = document.getElementById('w2Slider');
+            const alphaSlider = document.getElementById('alphaSlider');
+            
+            // 更新 w1
+            w1Slider.addEventListener('input', (e) => {
+                const w1 = parseInt(e.target.value) / 100;
+                const w2 = 1 - w1;
+                currentHCIWeights.w1 = w1;
+                currentHCIWeights.w2 = w2;
+                
+                document.getElementById('w1Value').textContent = (w1 * 100).toFixed(0) + '%';
+                document.getElementById('w2Value').textContent = (w2 * 100).toFixed(0) + '%';
+                w2Slider.value = (w2 * 100).toFixed(0);
+                
+                // 如果當前選擇的是 HCI，更新顯示
+                if (document.getElementById('indexSelect').value === 'hci') {
+                    const selectedZip = document.getElementById('zipSelect').value;
+                    if (selectedZip) {
+                        loadZipCodeData(selectedZip);
+                    }
+                }
+            });
+            
+            // 更新 w2
+            w2Slider.addEventListener('input', (e) => {
+                const w2 = parseInt(e.target.value) / 100;
+                const w1 = 1 - w2;
+                currentHCIWeights.w1 = w1;
+                currentHCIWeights.w2 = w2;
+                
+                document.getElementById('w2Value').textContent = (w2 * 100).toFixed(0) + '%';
+                document.getElementById('w1Value').textContent = (w1 * 100).toFixed(0) + '%';
+                w1Slider.value = (w1 * 100).toFixed(0);
+                
+                // 如果當前選擇的是 HCI，更新顯示
+                if (document.getElementById('indexSelect').value === 'hci') {
+                    const selectedZip = document.getElementById('zipSelect').value;
+                    if (selectedZip) {
+                        loadZipCodeData(selectedZip);
+                    }
+                }
+            });
+            
+            // 更新 alpha
+            alphaSlider.addEventListener('input', (e) => {
+                currentHCIWeights.alpha = parseInt(e.target.value) / 100;
+                document.getElementById('alphaValue').textContent = (currentHCIWeights.alpha * 100).toFixed(0) + '%';
+                
+                // 如果當前選擇的是 HCI，更新顯示
+                if (document.getElementById('indexSelect').value === 'hci') {
+                    const selectedZip = document.getElementById('zipSelect').value;
+                    if (selectedZip) {
+                        loadZipCodeData(selectedZip);
+                    }
+                }
+            });
+        }
+        
+        // 重新計算所有 ZIP Code 的 HCI
+        function recalculateAllHCI() {
+            if (!allData || !allData.data) return;
+            
+            allHCIResults = hciCalculator.calculateAllHCI(allData.data, currentHCIWeights);
+            console.log('✅ 已重新計算所有 ZIP Code 的 HCI', allHCIResults);
+        }
+        
+        // 頁面載入時執行
+        loadData();
+    </script>
+</body>
+</html>
+

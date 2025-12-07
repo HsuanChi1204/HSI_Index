@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "generated_at": "2025-11-10T19:22:02.588248",
+    "total_zipcodes": 29,
+    "total_census_records": 22
+  },
+  "data": {
+    "20001": {
+      "zip_code": "20001",
+      "zillow_data": {
+        "region_name": 20001,
+        "state": "DC",
+        "metro": "Washington-Arlington-Alexandria, DC-VA-MD-WV",
+        "county_name": "District of Columbia",
+        "mom": -0.1064255760820645,
+        "yoy": -3.7367872660317194,
+        "current_price": 645104.1997284648
+      },
+      "census_data": {
+        "total_population": 44056,
+        "median_age": 33.1,
+        "per_capita_income": 88836.0,
+        "total_families_below_poverty": 41993,
+        "total_housing_units": 26270,
+        "median_rent": 2458.0,
+        "median_home_value": 823800.0,
+        "total_labor_force": 32375,
+        "unemployed_population": 1411,
+        "school_age_population": 43185,
+        "school_enrollment": 43185,
+        "median_commute_time": 22069.0,
+        "poverty_family_rate": 95.31732340657345,
+        "poverty_rate": 95.31732340657345,
+        "unemployment_rate": 4.358301158301158,
+        "school_enrollment_rate": 100.0,
+        "bank": 205,
+        "bus": 11,
+        "hospital": 12,
+        "mall": 3,
+        "park": 593,
+        "restaurant": 970,
+        "school_poi": 274,
+        "station": 47,
+        "supermarket": 57
+      },
+      "crime_stats": {
+        "total_crimes": 302,
+        "by_offense": {
+          "THEFT/OTHER": 172,
+          "THEFT F/AUTO": 70,
+          "MOTOR VEHICLE THEFT": 39
+        }
+      },
+      "indices": {
+        "safety_index": 39.27,
+        "affordability_index": 63.39,
+        "premium_index": 36.61,
+        "quality_of_life_index": 48.92,
+        "investment_index": 37.68,
+        "crime_index": 60.73
+      },
+      "hci": {
+        "default": {
+          "hci_score": 0.6593,
+          "hci_score_100": 65.93,
+          "growth_indicator": 0.5202,
+          "growth_indicator_100": 52.02,
+          "crime_indicator": 0.2016,
+          "crime_indicator_100": 20.16,
+          "safety_indicator": 0.7984,
+          "safety_indicator_100": 79.84,
+          "crime_rate_per_1000": 6.85,
+          "weights": {
+            "w1_growth": 0.5,
+            "w2_safety": 0.5,
+            "alpha_yoy": 0.5
+          },
+          "has_growth_data": true,
+          "has_crime_data": true,
+          "has_population_data": true
+        },
+        "ranges": {
+          "min_mom": -1.096701721080359,
+          "max_mom": 0.2729346098739218,
+          "min_yoy": -6.374518515880008,
+          "max_yoy": 1.9374813493113812,
+          "min_crime_count": 2,
+          "max_crime_count": 496,
+          "min_crime_rate": 2.504653917752581,
+          "max_crime_rate": 24.081115335868187
+        }
+      }
+    }
+  }
+}

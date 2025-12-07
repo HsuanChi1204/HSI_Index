@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Chatbot Test</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #chat-history { 
+            height: 400px; 
+            border: 1px solid #ccc; 
+            overflow-y: scroll; 
+            padding: 10px; 
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        .message { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
+        .user { background-color: #e3f2fd; text-align: right; }
+        .bot { background-color: #fff; border: 1px solid #eee; }
+        .input-area { display: flex; gap: 10px; }
+        input { flex-grow: 1; padding: 10px; }
+        button { padding: 10px 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🤖 DC Crime & Real Estate Chatbot</h1>
+    <div id="chat-history"></div>
+    <div class="input-area">
+        <input type="text" id="user-input" placeholder="Ask about a zipcode (e.g., 'Stats for 20001' or 'Is 20002 safe?')..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const history = [];
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const chatHistory = document.getElementById('chat-history');
+            const query = input.value.trim();
+            
+            if (!query) return;
+
+            // Add user message
+            appendMessage('user', query);
+            input.value = '';
+            input.disabled = true;
+
+            try {
+                const response = await fetch('http://localhost:8000/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: query,
+                        history: history 
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Add bot message
+                appendMessage('bot', data.response);
+                
+                // Update history
+                history.push({ role: 'user', content: query });
+                history.push({ role: 'model', content: data.response });
+
+            } catch (error) {
+                appendMessage('bot', 'Error: Could not connect to backend. Is it running?');
+                console.error(error);
+            }
+
+            input.disabled = false;
+            input.focus();
+        }
+
+        function appendMessage(role, text) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            // Convert newlines to breaks for bot messages
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            document.getElementById('chat-history').appendChild(div);
+            document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
+        }
+
+        // Allow Enter key
+        document.getElementById('user-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

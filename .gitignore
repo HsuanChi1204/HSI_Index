@@ -1,0 +1,36 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 環境變數
+.env
+credentials.json
+
+# 日誌檔案
+*.log
+processing_output.log
+test_output.log
+monitor.log
+
+# 自動生成的檔案
+.bucket_name.txt
+.public_url.txt
+processing_progress.json
+cors.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Large Data Files (>100MB)
+HouseTS.csv
+Zip_zhvi_uc_sfrcondo_tier_0.33_0.67_sm_sa_month.csv

@@ -1,0 +1,57 @@
+"metadata": {
+    "generated_at": "2025-12-06T18:57:14.299648",
+    "total_zipcodes": 27,
+    "total_crimes": 20417,
+    "total_zillow_records": 22,
+    "index_ranges": {
+      "crime_range": {
+        "min": 11,
+        "max": 2609
+      },
+      "price_range": {
+        "min": 240203.03536381747,
+        "max": 1346125.8036585916
+      }
+    }
+  },
+  "data": {
+    "20032": {
+      "zip_code": "20032",
+      "zillow_data": {
+        "region_name": 20032,
+        "state": "DC",
+        "metro": "Washington-Arlington-Alexandria, DC-VA-MD-WV",
+        "county_name": "District of Columbia",
+        "mom": -0.8146423948781943,
+        "yoy": -6.374518515880008,
+        "current_price": 335635.9328798225
+      },
+      "crime_stats": {
+        "total_crimes": 736,
+        "by_offense": {
+          "THEFT/OTHER": 224,
+          "MOTOR VEHICLE THEFT": 208,
+          "ASSAULT W/DANGEROUS WEAPON": 102,
+          "THEFT F/AUTO": 72,
+          "ROBBERY": 63,
+          "BURGLARY": 44,
+          "HOMICIDE": 17,
+          "SEX ABUSE": 6
+        },
+        "by_shift": {
+          "EVENING": 285,
+          "DAY": 252,
+          "MIDNIGHT": 199
+        },
+        "by_ward": {
+          "8.0": 735
+        }
+      },
+      "indices": {
+        "safety_index": 72.09,
+        "affordability_index": 91.37,
+        "premium_index": 8.63,
+        "quality_of_life_index": 79.8,
+        "investment_index": 34.02,
+        "crime_index": 27.91
+      },

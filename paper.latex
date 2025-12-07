@@ -1,0 +1,621 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{courier}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.2}
+
+% ---------- Code Highlight (JS & Solidity) ----------
+\lstdefinelanguage{JavaScript}{
+  keywords={break, case, catch, continue, debugger, default, delete, do, else,
+    finally, for, function, if, in, instanceof, new, return, switch, this,
+    throw, try, typeof, var, void, while, with, let, const, await, async},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={class, export, boolean, throw, implements, import, this},
+  ndkeywordstyle=\color{gray}\bfseries,
+  identifierstyle=\color{black},
+  sensitive=false,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{gray}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  morestring=[b]',
+  morestring=[b]",
+  morestring=[b]`
+}
+\lstdefinelanguage{Solidity}{
+  keywords={contract, function, returns, uint, string, public, private, view, memory, storage, mapping, struct, event, emit, require, return, if, else, true, false, onlyOwner, constructor},
+  keywordstyle=\color{blue}\bfseries,
+  ndkeywords={address, uint256, bool},
+  ndkeywordstyle=\color{teal},
+  identifierstyle=\color{black},
+  sensitive=true,
+  comment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  commentstyle=\color{gray}\ttfamily,
+  stringstyle=\color{orange}\ttfamily,
+  morestring=[b]",
+}
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  breaklines=true,
+  frame=single,
+  captionpos=b,
+  language=JavaScript
+}
+
+
+% ---------- Metadata ----------
+\title{Check Point: Crime Data and Housing Prices}
+
+\author{
+    Hsuan-Chi Chang, Wei-Ju Li \\
+    Department of Computer Science \\
+    Virginia Tech, Alexandria, VA, USA \\
+    hsuanchi@vt.edu, weijuli@vt.edu
+}
+
+
+\begin{document}
+\maketitle
+
+
+% ---------- Abstract ----------
+\begin{abstract}
+This project presents a scalable decision-support system that integrates housing market data and crime statistics to help homebuyers and investors make balanced decisions between growth and safety. We analyze the Zillow Home Value Index (ZHVI) and Washington, DC crime data to compute Month-over-Month (MoM) and Year-over-Year (YoY) growth rates, and construct a Housing–Crime Index (HCI) with user-defined weights. The system architecture combines a PostgreSQL–PostGIS database (Supabase) with a GCP backend and AWS Bedrock AI Agent for natural-language queries. To enhance robustness, we plan to integrate the HouseTS dataset, which provides multimodal features such as socioeconomic indicators and points of interest for over 6,000 ZIP codes nationwide. Normalization, weighting, and validation processes are explicitly defined to ensure transparency. Ethical safeguards are implemented to prevent data misinterpretation and stigmatization. The result is a cloud-based, interactive platform that visualizes neighborhood trade-offs and supports responsible urban analytics.
+\end{abstract}
+
+
+% ---------- Keywords ----------
+\begin{IEEEkeywords}
+Crime, Housing Prices, Spatial Analysis, Zillow, DC Crime
+\end{IEEEkeywords}
+
+% ---------- Introduction ----------
+\section{Introduction}
+Crime data plays an essential role in homebuyers’ decision-making. 
+Research shows that when platforms such as Zillow remove crime information, 
+buyers may perceive neighborhoods as safer than they truly are, 
+leading to overpriced but unsafe purchases \cite{ceccato2004crime,goetz2019zillow}. 
+
+Studies illustrate that higher crime rates---especially burglary---are linked 
+to declines in housing prices, with stronger effects in areas distant from 
+city centers \cite{ceccato2004crime}. Hedonic pricing models further show 
+that including crime data corrects omitted variable bias, allowing for 
+more accurate property valuations \cite{thaler1978valuation}. Even small 
+differences in crime rates significantly affect buyers’ willingness to pay 
+\cite{gibbons2004value}. 
+
+If crime data is hidden, buyers rely on incomplete information, 
+causing market distortions. Spatial econometric analyses confirm that 
+detailed local crime data is critical for understanding neighborhood 
+price differences and risk factors \cite{tita2006crime}. 
+Overall, crime data is not peripheral, but a central component of housing valuation.
+
+Building on these insights, this project develops a data-driven decision-support system that integrates housing market indicators and crime data at the ZIP-code level for the Washington, DC metropolitan area. We preprocess the Zillow Home Value Index (ZHVI) and DC crime datasets, derive Month-over-Month (MoM) and Year-over-Year (YoY) growth rates, and map all incidents to ZIP codes using the Nominatim reverse-geocoding API. 
+The processed data are stored in a Supabase PostgreSQL–PostGIS database to support spatial queries. An Angular web interface connects to a cloud-based backend on Google Cloud Run, which computes a Housing–Crime Index (HCI) and communicates with an AWS Bedrock AI Agent for natural-language analysis and visualization. 
+
+To enrich the analysis, we incorporate the HouseTS dataset, which provides additional socioeconomic and point-of-interest (POI) features for the same ZIP codes. This integration enhances the robustness of our index and supports multimodal validation. In future work, the same architecture will be extended beyond Washington, DC to enable cross-city comparison and long-term spatiotemporal housing analysis.
+
+
+
+% ---------- Related Work ----------
+\section{Related Work}
+Multiple studies have combined house pricing data with crime map data to analyze 
+the impact of crime on property values. For instance, Ceccato and Wilhelmsson (2020) 
+integrate geocoded housing transaction data with spatial crime data by identifying 
+crime hot spots using Getis-Ord statistics and hedonic price modeling. Their analysis 
+in the Stockholm metropolitan area demonstrates that proximity to crime hot spots, 
+particularly those with high incidences of vandalism, negatively affects house prices 
+\cite{ceccato2020}.
+
+Similarly, research by McIlhatton and colleagues (2016) employs spatial econometric 
+models to merge detailed housing price data with geographically referenced crime incident 
+data in a UK city. Their approach uses spatial lag and spatial error models within a 
+hedonic pricing framework to capture the localized effects of different crime types 
+on house prices. They emphasize the role of spatial autocorrelation and local crime 
+clusters in shaping property values, thereby exemplifying the integration of house 
+pricing data and crime map data in their analytical models \cite{mcilhatton2016}.
+
+A third related study is proposed by Zhang, Adepeju, and Thomas (2022), who outline 
+an experimental design to evaluate the effects of publicly available street-level crime 
+maps on house prices. Their protocol leverages the natural variation introduced by 
+geomasking in police.uk crime maps and combines these with detailed house pricing 
+records from the UK Land Registry Price Paid dataset. By exploiting the differences 
+between the published, geomasked crime data and the true underlying data, they aim 
+to isolate the causal impact of crime map information on housing values 
+\cite{zhang2022}.
+
+Based on the reviewed research, at least three distinct studies have been conducted 
+that focus on using house pricing data combined with crime map data for analysis. 
+Each study utilizes rigorous methods---ranging from spatial statistical techniques 
+to natural experiment designs---to examine how the geographical distribution of 
+crime correlates with property market outcomes.
+
+\subsection{Integration of Multimodal and Spatiotemporal Datasets}
+Beyond traditional econometric models, recent advances in large-scale multimodal 
+datasets have enabled richer and more reproducible analysis of urban housing dynamics. 
+The \textit{HouseTS} dataset introduced by Wang et al. (2025) provides monthly housing 
+data for over 6,000 ZIP codes across 30 U.S. metropolitan areas, incorporating 
+socioeconomic indicators, points of interest (POI), and high-resolution satellite 
+imagery. It serves as a benchmark for multimodal, long-term housing analysis, 
+facilitating consistent preprocessing and feature alignment across diverse regions. 
+Compared with previous single-source datasets such as Zillow or Redfin, HouseTS 
+offers unified data quality, spatiotemporal continuity, and cross-city scalability. 
+In this project, we integrate the Washington, DC subset of HouseTS with local crime 
+data to construct and validate a composite Housing–Crime Index (HCI) that connects 
+spatial, economic, and safety dimensions in a transparent way.
+
+
+% ---------- Proposed Approaches ----------
+\section{Proposed Approaches}
+Our project focuses on combining housing value trends with crime trends to create 
+a composite decision index at the ZIP code level in Washington, DC. 
+The approach involves the following components:
+
+\begin{enumerate}
+    \item \textbf{Data Preprocessing:} 
+    We obtain the Zillow Home Value Index (ZHVI) data at the ZIP code level 
+    and compute both Month-over-Month (MoM) and Year-over-Year (YoY) growth rates. 
+    For crime data, we aggregate incidents from the DC open-data portal, 
+    extracting fields such as \texttt{OFFENSE}, \texttt{WARD}, \texttt{NEIGHBORHOOD\_CLUSTER}, 
+    and geolocation coordinates. Using the Nominatim reverse-geocoding API, 
+    each incident is mapped to a ZIP code. The processed datasets are stored in 
+    a Supabase PostgreSQL–PostGIS database with spatial indexing to support queries 
+    and choropleth visualization.
+
+    \item \textbf{Normalization:} 
+    To ensure comparability between variables with different scales, 
+    all numeric features—such as housing growth rates and crime frequencies—are 
+    normalized to a [0, 1] range using min–max normalization:
+    \begin{equation}
+        \widetilde{x}_{z} = 
+        \frac{x_{z} - \min(x)}{\max(x) - \min(x)},
+    \end{equation}
+    where $x_{z}$ denotes the raw value for ZIP code $z$. 
+    This transformation enhances interpretability by allowing 
+    0 to represent the least favorable condition and 1 the most favorable. 
+    While the HouseTS dataset applies log-normalization for model training, 
+    we adopt min–max normalization to maintain transparency and consistency 
+    for user-facing visualization and index computation.
+
+    \item \textbf{Index Construction:} 
+    We construct a composite Housing–Crime Index (HCI) that merges housing appreciation 
+    and safety levels with user-defined weights:
+    \begin{equation}
+        \mathrm{HCI}_{z} = 
+        w_{1} \, \widetilde{G}_{z} + 
+        w_{2} \, (1 - \widetilde{C}_{z}),
+    \end{equation}
+    where $\widetilde{G}_{z}$ represents the normalized growth indicator 
+    (combining MoM and YoY rates) and $\widetilde{C}_{z}$ represents 
+    the normalized crime measure (rate per 1,000 residents). 
+    Users can adjust the weights $w_{1}$ and $w_{2}$ in the web interface to 
+    emphasize investment potential or residential safety.
+
+    \item \textbf{Integration with HouseTS:}
+    To enrich contextual understanding, we integrate features from the 
+    \textit{HouseTS} dataset such as median rent, per capita income, 
+    and POI densities corresponding to each ZIP code. 
+    These features are aligned with our local DC datasets to 
+    support correlation analysis and validation of the HCI results.
+
+    \item \textbf{Validation:} 
+    We plan to validate the HCI by comparing it against socioeconomic indicators 
+    (e.g., income, rent) from HouseTS and checking spatial consistency. 
+    Areas known to have high-value yet high-crime dynamics 
+    (e.g., rapidly developing neighborhoods) will serve as case studies 
+    for evaluating the index’s interpretability and robustness.
+\end{enumerate}
+
+
+
+% ---------- System Design ----------
+\section{System Design}
+
+\subsection{System Overview}
+Figure~\ref{fig:system_architecture} presents the conceptual workflow 
+of the proposed system, integrating the Zillow ZHVI and DC Crime datasets 
+to compute a composite Housing–Crime Index (HCI). 
+The system follows a three-layer design that connects data ingestion, 
+processing, and interactive visualization.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{system_architecture.png}
+\caption{Conceptual system architecture integrating Zillow ZHVI dataset 
+and DC Crime dataset.}
+\label{fig:system_architecture}
+\end{figure}
+
+\noindent
+\textbf{Data Layer:}  
+This layer collects and stores the two main datasets.  
+The Zillow Home Value Index (ZHVI) provides ZIP-code–level monthly home value indices, 
+while the DC Crime dataset aggregates crime incidents geocoded by ZIP code. 
+Both datasets are stored in a PostgreSQL–PostGIS database that supports spatial queries 
+and geometry indexing.
+
+\noindent
+\textbf{Processing Layer:}  
+Data preprocessing aligns ZHVI and crime data by ZIP code, 
+removes missing values, and normalizes the attributes. 
+Two types of housing growth rates are computed:
+\begin{itemize}
+    \item \textbf{Month-over-Month (MoM):} captures short-term fluctuations.
+    \item \textbf{Year-over-Year (YoY):} captures long-term appreciation trends.
+\end{itemize}
+Crime incidents are aggregated by ZIP code and normalized by population 
+(per 1,000 residents). The composite HCI index is constructed by combining 
+the normalized housing growth ($\widetilde{G}_{z}$) and crime rate 
+($\widetilde{C}_{z}$) with user-defined weights:
+
+\begin{equation}
+    \mathrm{HCI}_{z} = w_{1} \, \widetilde{G}_{z} + w_{2} \, (1 - \widetilde{C}_{z}),
+\end{equation}
+
+where $w_{1}$ and $w_{2}$ represent the weights assigned to housing growth 
+and safety respectively, satisfying $w_{1} + w_{2} = 1$.  
+The subcomponents $G_{z}$ and $C_{z}$ are further defined as:
+
+\begin{align}
+    G_{z} &= \alpha \, \widetilde{\mathrm{YoY}}_{z} + (1 - \alpha) \, \widetilde{\mathrm{MoM}}_{z}, \\
+    C_{z} &= \beta \, \widetilde{\mathrm{CrimeRate}}_{z} + (1 - \beta) \, \widetilde{\mathrm{CrimeTrend}}_{z},
+\end{align}
+
+and each variable is normalized into a [0, 1] interval using min–max scaling:
+
+\begin{equation}
+    \widetilde{x}_{z} = \frac{x_{z} - \min(x)}{\max(x) - \min(x)}.
+\end{equation}
+
+This normalization scheme provides interpretability by ensuring that 
+0 represents the least favorable condition and 1 represents the most favorable one.
+
+\noindent
+\textbf{Application Layer:}  
+The user interacts with the system through a web-based interface built with 
+React and Mapbox/Leaflet. A pair of sliders allows users to adjust 
+$w_{1}$ and $w_{2}$ dynamically to reflect personal preferences 
+(e.g., prioritizing investment potential or safety). 
+Outputs include ZIP-code–level choropleth maps, comparative trend graphs, 
+and scenario-based recommendations.
+
+---
+\subsection{Implementation and Technologies}
+To support scalability and AI integration, the system is deployed 
+as a four-layer cloud-based architecture across Supabase, 
+Google Cloud Platform (GCP), and Amazon Web Services (AWS), 
+as shown in Figure~\ref{fig:adv_architecture}.  
+Each layer is modular, containerized, and independently deployable, 
+ensuring flexibility and maintainability.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{four_layer.jpg}
+\caption{Four-layer implementation architecture using Supabase, GCP, and AWS.}
+\label{fig:adv_architecture}
+\end{figure}
+
+\vspace{1mm}
+\noindent\textbf{Front-End Layer (Angular Web App):}  
+Implements an interactive user interface using Angular and Mapbox, 
+as illustrated in Figure~\ref{fig:frontend_ui}. 
+Users can adjust the index weights (safety vs. growth), visualize ZIP-level 
+scores, and access a chat interface powered by the AI Agent for 
+natural-language insights.
+
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{frontend_interface.jpg}
+\caption{Front-end user interface of the Housing–Crime Index (HCI) web application. 
+The Angular + Mapbox interface visualizes Washington, DC ZIP code boundaries, 
+allowing users to explore housing and crime trends, adjust weight preferences, 
+and toggle between light/dark themes. Neutral color tones and contextual tooltips 
+are used to promote ethical visualization.}
+\label{fig:frontend_ui}
+\end{figure}
+\vspace{1mm}
+\noindent
+\textbf{Application Layer (GCP Backend):}  
+A .NET backend deployed on Google Cloud Run handles RESTful API requests 
+from the frontend. It computes the HCI values, manages user sessions, 
+and communicates with the AWS AI Agent through secured API calls.  
+Google Cloud Storage hosts processed CSVs for caching and efficient retrieval.
+\vspace{1mm}
+\noindent
+\textbf{AI Agent Layer (AWS Bedrock):}  
+The AWS Bedrock Agent processes natural-language queries, 
+calls AWS Lambda functions to query Supabase, and generates visual summaries 
+or recommendations. API Gateway manages secure communication between the 
+backend and Bedrock services.
+\vspace{1mm}
+\noindent
+\textbf{Data Layer (Supabase):}  
+Supabase hosts a PostgreSQL–PostGIS database that stores housing and crime data, 
+computed HCI scores, and geographic geometries.  
+Spatial indexing (GIST) and materialized views improve query efficiency, 
+while SQL triggers maintain data consistency.  
+
+\begin{table}[!t]
+\centering
+\caption{Technology Stack Summary.}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{|l|l|m{4cm}|}
+\hline
+\textbf{Layer} & \textbf{Technologies / Services} & \textbf{Purpose} \\ \hline
+Front-End & Angular, TypeScript, Mapbox & Interactive visualization, weight adjustment, and chat interface \\ \hline
+Application (GCP) & .NET Core, Cloud Run, Google Cloud Storage & Compute HCI, manage API requests, and cache processed datasets \\ \hline
+AI Agent (AWS) & AWS Bedrock, Lambda, API Gateway & Handle natural-language queries, generate charts and summaries \\ \hline
+Data Layer & Supabase (PostgreSQL + PostGIS) & Store spatial data, support geospatial queries, and maintain normalized metrics \\ \hline
+\end{tabular}
+}
+\end{table}
+
+This hybrid GCP–AWS architecture decouples computation, data management, 
+and AI interaction. The GCP backend focuses on orchestrating index computation 
+and frontend requests, while AWS provides elastic AI processing and visualization generation.  
+Supabase serves as the unified data layer for persistent storage and spatial queries, 
+ensuring transparency, reproducibility, and scalability for future integration 
+with multimodal datasets such as HouseTS.
+
+
+% ---------- DataBase Design -----------
+\section{Database Design and Schema Optimization}
+
+\subsection{Database Design Overview}
+The project utilizes a relational database architecture hosted on Supabase 
+(PostgreSQL + PostGIS) to store, normalize, and query housing and crime data 
+at the ZIP-code level. The database schema is designed for modularity and scalability, 
+supporting spatial joins and analytical queries across multiple datasets 
+such as ZHVI, DC Crime, and HouseTS.  
+
+Figure~\ref{fig:er_diagram} illustrates the entity–relationship (ER) design.  
+Each ZIP code serves as a primary linkage key between datasets, 
+enabling efficient spatial aggregation and comparative analysis.  
+The design supports both temporal and spatial queries through 
+indexing and caching mechanisms described in Section~V-B.
+
+% \begin{figure}[!t]
+% \centering
+% \includegraphics[width=\columnwidth]{database_er.png}
+% \caption{Entity–relationship diagram showing the linkage among ZHVI, Crime, and Composite Index tables.}
+% \label{fig:er_diagram}
+% \end{figure}
+
+\subsection{Schema Details}
+The database consists of three major tables: 
+\texttt{crime\_data}, \texttt{zhvi\_data}, and \texttt{composite\_index}.  
+Each table is normalized to reduce redundancy and optimized for spatial queries.
+
+\noindent
+\textbf{1) Crime Data Schema:}
+\begin{table}[!t]
+\centering
+\caption{DC Crime Data Schema (2025).}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{|l|l|m{5.5cm}|}
+\hline
+\textbf{Field Name} & \textbf{Type} & \textbf{Description} \\ \hline
+X, Y & FLOAT & Projected coordinates (State Plane) \\ \hline
+CCN & VARCHAR(20) & Case Control Number (unique police report ID) \\ \hline
+REPORT\_DAT & TIMESTAMP & Date and time when the incident was reported \\ \hline
+SHIFT & VARCHAR(20) & Police shift (DAY, EVENING, MIDNIGHT) \\ \hline
+OFFENSE & VARCHAR(100) & Type of crime (e.g., THEFT/OTHER, BURGLARY) \\ \hline
+BLOCK & VARCHAR(100) & Street block of the incident \\ \hline
+WARD, DISTRICT & INTEGER & DC political and police subdivisions \\ \hline
+LATITUDE, LONGITUDE & FLOAT & Geographic coordinates \\ \hline
+ZIPCODE & VARCHAR(10) & ZIP code derived using Nominatim API \\ \hline
+START\_DATE, END\_DATE & TIMESTAMP & Start and end time of incident \\ \hline
+\end{tabular}
+}
+\end{table}
+
+\noindent
+\textbf{2) Housing Data Schema:}
+\begin{table}[!t]
+\centering
+\caption{Zillow ZHVI Data Schema.}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{|l|l|m{5.5cm}|}
+\hline
+\textbf{Field Name} & \textbf{Type} & \textbf{Description} \\ \hline
+ZIPCODE & VARCHAR(10) & ZIP code identifier \\ \hline
+REGIONNAME, COUNTYNAME & VARCHAR(50) & Regional and county labels \\ \hline
+MOM & FLOAT & Month-over-month growth rate (\%) \\ \hline
+YOY & FLOAT & Year-over-year growth rate (\%) \\ \hline
+CURRENTPRICE & FLOAT & Latest ZHVI value (USD) \\ \hline
+\end{tabular}
+}
+\end{table}
+
+\noindent
+\textbf{3) Composite Index Schema:}
+\begin{table}[!t]
+\centering
+\caption{Composite Housing–Crime Index Schema.}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{|l|l|m{5.5cm}|}
+\hline
+\textbf{Field Name} & \textbf{Type} & \textbf{Description} \\ \hline
+ZIPCODE & VARCHAR(10) & ZIP code identifier (primary key) \\ \hline
+HCI\_SCORE & FLOAT & Computed housing–crime composite index \\ \hline
+WEIGHT\_GROWTH & FLOAT & Weight assigned to housing growth \\ \hline
+WEIGHT\_SAFETY & FLOAT & Weight assigned to safety/crime rate \\ \hline
+UPDATED\_AT & TIMESTAMP & Last computation timestamp \\ \hline
+\end{tabular}
+}
+\end{table}
+
+\subsection{Optimization Strategies}
+To ensure scalability and fast query performance, multiple optimization techniques 
+were implemented:
+
+\begin{itemize}
+    \item \textbf{Spatial Indexing:}  
+    Each dataset containing geographic data (latitude/longitude or ZIP polygons) 
+    employs a GIST index on its geometry column, significantly improving query 
+    performance for spatial joins and map rendering:
+    \begin{lstlisting}[language=SQL,caption={Creating a GIST index for spatial queries}]
+CREATE INDEX crime_geom_idx 
+ON crime_data USING GIST (geom);
+    \end{lstlisting}
+
+    \item \textbf{Materialized Views:}  
+    Frequently used aggregated results, such as monthly crime counts and average 
+    HCI per ZIP code, are precomputed and stored as materialized views to minimize 
+    redundant computation during API requests.
+
+    \item \textbf{Caching Strategy:}  
+    Static CSV files generated from preprocessing (ZHVI and crime summaries) 
+    are stored in Google Cloud Storage and fetched by the GCP backend when needed, 
+    reducing latency and database load during repeated visualizations.
+
+    \item \textbf{Data Consistency and Triggers:}  
+    PostgreSQL triggers automatically update derived metrics (e.g., recomputed 
+    HCI scores) when source tables are modified. This guarantees data consistency 
+    between raw datasets and computed indices.
+
+\end{itemize}
+
+This design enables fast data retrieval for interactive map rendering 
+and AI-assisted querying, while maintaining normalization, consistency, 
+and scalability for future integration of multimodal datasets such as HouseTS.
+
+% --------- Ethical ----------
+\section{Ethical and Data Reliability Considerations}
+
+\subsection{Ethical Presentation of Crime Data}
+While combining crime and housing data provides valuable insights for homebuyers 
+and investors, it also raises important ethical challenges. 
+Crime statistics are often unevenly reported across neighborhoods, 
+and their visualization can unintentionally reinforce stereotypes or stigmatize 
+communities. To mitigate this risk, our system avoids labeling any ZIP code as 
+“safe” or “unsafe.” Instead, it presents continuous normalized indicators, 
+emphasizing comparative trends rather than absolute rankings.  
+
+In addition, choropleth maps are designed using neutral color palettes 
+(e.g., blue–gray scales) instead of alarming red tones to avoid 
+misleading visual emphasis. Descriptive tooltips clarify that crime data 
+reflect reported incidents, not verified convictions, and should be interpreted 
+as relative measures of risk rather than definitive safety indicators.
+
+\subsection{Fairness and Contextualization}
+The project explicitly integrates contextual socioeconomic variables 
+to promote fairness and reduce data misinterpretation. 
+By referencing supplementary datasets such as HouseTS—containing information on 
+population density, income levels, and points of interest—the visualizations 
+help users interpret housing and crime trends within a broader social context.  
+This approach ensures that the platform encourages informed decision-making 
+rather than simplistic judgments about neighborhood safety.
+
+\subsection{Data Reliability and Limitations}
+Both the ZHVI and DC Crime datasets have inherent reliability constraints. 
+Zillow data may underrepresent rapid price fluctuations in smaller markets, 
+while crime data are subject to underreporting and inconsistent classification.  
+For instance, police records may vary in completeness across different wards, 
+and temporal lags can occur between the incident date and official publication.  
+To account for these issues, our system performs outlier detection, 
+temporal smoothing, and missing-value interpolation during preprocessing.  
+All derived metrics are accompanied by timestamps and data-source metadata 
+to ensure transparency.
+
+\subsection{Transparency and Responsible Use}
+The web application includes a dedicated “Data Disclaimer” section that outlines 
+the purpose and limitations of the analysis. Users are reminded that the 
+Housing–Crime Index (HCI) is a relative indicator intended for exploratory 
+comparison, not as an absolute measure of neighborhood desirability.  
+All data sources are publicly available and licensed under open data terms, 
+and the processing code will be released for academic reproducibility.  
+This transparency ensures that the project aligns with responsible data 
+science practices and upholds ethical standards in public data visualization.
+% -------- Progress Report -------
+\section{Progress Report and Next Steps}
+
+\subsection{Progress Report}
+Table~\ref{tab:progress} summarizes the progress achieved by each team member 
+as of the current checkpoint. Both members have contributed to system design, 
+data integration, and validation, following an iterative and collaborative workflow.
+
+\begin{table}[!t]
+\centering
+\caption{Team Progress Summary.}
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{|l|m{3cm}|m{4cm}|}
+\hline
+\textbf{Team Member} & \textbf{Work Completed} & \textbf{Next Steps} \\ \hline
+\textbf{Hsuan-Chi Chang} & 
+Implemented data preprocessing pipeline for ZHVI and DC Crime datasets.  
+Integrated Nominatim API to map coordinates to ZIP codes and imported cleaned data into Supabase.  
+Set up PostgreSQL–PostGIS schema and tested spatial queries. &
+Integrate additional socioeconomic variables from HouseTS (median rent, income, POI density).  
+Conduct validation and correlation analysis between HCI and HouseTS metrics. \\ \hline
+
+\textbf{Wei-Ju Li} & 
+Developed the Angular frontend, including choropleth map visualization and weight-adjustable sliders.  
+Implemented responsive user interface and connected frontend with backend API endpoints. &
+Integrate AWS Bedrock AI Agent for natural-language queries and improve visualization ethics (disclaimer panel, color scheme).  
+Finalize user interaction testing. \\ \hline
+
+\textbf{Both Members} & 
+Collaboratively defined system architecture and HCI computation methodology.  
+Wrote initial proposal and extended sections on normalization, ethics, and database optimization. &
+Perform system integration between GCP backend and AWS AI layer.  
+Prepare final presentation and documentation for submission. \\ \hline
+\end{tabular}
+}
+\label{tab:progress}
+\end{table}
+
+\subsection{Next Steps}
+Over the next development phase, the team will focus on three main tasks:
+\begin{enumerate}
+    \item \textbf{Validation and Testing:}  
+    Conduct cross-validation of HCI results with socioeconomic indicators from HouseTS 
+    and ensure accuracy of spatial joins and normalization.
+    \item \textbf{Frontend Integration:}  
+    Complete full linkage between the Angular interface, GCP backend, and AWS AI Agent, 
+    enabling interactive and conversational analytics.
+    \item \textbf{Performance Optimization:}  
+    Implement caching and materialized views to reduce query latency and prepare 
+    the system for final demonstration and report submission.
+\end{enumerate}
+
+The team maintains a collaborative development workflow through version-controlled 
+repositories and weekly progress meetings, ensuring consistent progress 
+and clear task ownership toward project completion.
+
+% ---------- References ----------
+\bibliographystyle{IEEEtran}   % ← 改成 IEEEtran
+\bibliography{references}      % ← 這裡 references 對應你的 references.bib
+
+% ---------- Appendix ----------
+\appendix
+
+\section*{Appendix A: Task Assignment}
+\begin{itemize}
+    \item \textbf{Hsuan Chi Chang:} Responsible for ZHVI data preprocessing, YoY growth calculations, and database setup. Focuses on DC Crime dataset aggregation, trend analysis, and normalization by ZIP code.
+    \item \textbf{Wei Ju Li:} Develops the frontend interface, including map visualization and index weighting controls.
+    \item \textbf{All Members:} Collaborate on system integration, testing, and report writing.
+\end{itemize}
+
+\section*{Appendix B: Schedule}
+\begin{itemize}
+    \item \textbf{Week 1:} Literature review and dataset exploration.
+    \item \textbf{Week 2--3:} Data preprocessing, alignment of ZHVI and crime datasets.
+    \item \textbf{Week 4:} Calculation of YoY growth and crime trends by ZIP code.
+    \item \textbf{Week 5:} Index formula design and initial testing.
+    \item \textbf{Week 6:} Frontend map visualization and user interface development.
+    \item \textbf{Week 7:} System integration, validation, and final presentation/report preparation.
+\end{itemize}
+
+
+\end{document}
