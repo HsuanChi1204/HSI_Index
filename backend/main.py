@@ -7,7 +7,10 @@ import os
 load_dotenv()
 
 # Import routers
-from routers import chat, data
+try:
+    from backend.routers import chat, data
+except ImportError:
+    from routers import chat, data
 
 app = FastAPI(
     title="DC Crime & Real Estate Chatbot API",
