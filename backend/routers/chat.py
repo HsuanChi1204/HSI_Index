@@ -154,8 +154,9 @@ async def chat_endpoint(request: ChatRequest, supabase: Client = Depends(get_sup
     
     **Guidelines:**
     1.  **Be Analytical**: Interpret the numbers.
-    2.  **HCI Logic**: Use `search_knowledge_base` if you need to explain how HCI is calculated or the ethical stance (e.g., why we don't say "unsafe").
-    3.  **Tone**: Professional, conversational, direct.
+    2.  **Prioritize HCI Fields**: When discussing safety or scores, ALWAYS use `hci_score` (0-1), `safety_indicator` (0-1), and `crime_rate_per_1000`. Ignore the legacy `safety_index` or `crime_index` unless specifically asked.
+    3.  **HCI Logic**: Use `search_knowledge_base` if you need to explain how HCI is calculated or the ethical stance (e.g., why we don't say "unsafe").
+    4.  **Tone**: Professional, conversational, direct.
     """
 
     # 3. Initialize Model with Tools
