@@ -153,10 +153,16 @@ async def chat_endpoint(request: ChatRequest, supabase: Client = Depends(get_sup
     2. `search_knowledge_base(query)`: For explaining concepts, formulas (HCI), or ethics.
     
     **Guidelines:**
-    1.  **Be Analytical**: Interpret the numbers.
-    2.  **Prioritize HCI Fields**: When discussing safety or scores, ALWAYS use `hci_score` (0-1), `safety_indicator` (0-1), and `crime_rate_per_1000`. Ignore the legacy `safety_index` or `crime_index` unless specifically asked.
-    3.  **HCI Logic**: Use `search_knowledge_base` if you need to explain how HCI is calculated or the ethical stance (e.g., why we don't say "unsafe").
-    4.  **Tone**: Professional, conversational, direct.
+    1.  **Terminology**: ALWAYS refer to the index as **HSI** (House-Safety Index), not HCI.
+    2.  **Score Formatting**: ALWAYS present scores as **0-100** (multiply the 0-1 value by 100). For example, 0.4962 becomes **49.62**.
+    3.  **Dynamic Calculation**: 
+        -   The database stores a default HSI (0.5/0.5 weights).
+        -   **IF** the user has custom weights (w1, w2) in the context:
+            -   You MUST recalculate the HSI using the raw indicators from `get_zipcode_data`.
+            -   Formula: `HSI = (w1 * growth_indicator + w2 * safety_indicator) * 100`
+            -   Use the `growth_indicator` and `safety_indicator` values from the tool output.
+    4.  **Be Analytical**: Interpret the numbers.
+    5.  **Tone**: Professional, conversational, direct.
     """
 
     # 3. Initialize Model with Tools
